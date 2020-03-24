@@ -73,7 +73,7 @@ void loop() {
         digitalWrite(LED_BUILTIN, HIGH);
     }
     last_send = millis();
-  } else if (((uint16_t)millis()) - last_send >= 10000) {
+  } else if (((uint16_t)millis()) - last_send >= 1000) {
     init_error = true;
   } else {
     delay(1);
