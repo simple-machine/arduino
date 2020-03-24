@@ -1,17 +1,23 @@
 const uint16_t VERSION = 0;
 const char MAGIC_BYTES[4] = { 0x73, 0x6D, 0x6F, 0x76 };
 
-bool init_error = false;
+const int MOTOR_PIN = 3; // This is specific to the Arduino UNO, change according to the platform
+
+bool init_error = false; // Was there a fatal error
+int last_send; // When was the last heartbeat sent?
 
 void setup() {
-  Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(MOTOR_PIN, OUTPUT);
+  Serial.begin(115200);
 
-  while (!Serial) {delay(100);} // Wait for interface
+  digitalWrite(LED_BUILTIN, LOW);
 
+  while (!Serial) delay(1); // Wait for interface
+  
   // Initialization
   char buf_magic[4];
-  while (Serial.available() < 4) {delay(100);}
+  while (Serial.available() < 4) delay(1);
   int r = Serial.readBytes(buf_magic, 4);
   if (r != 4 || strncmp(MAGIC_BYTES, buf_magic, 4) != 0) {
     init_error = true;
@@ -28,12 +34,14 @@ void setup() {
     init_error = true;
     return;
   }
-  while (Serial.available() == 0) { delay(100); };
+  
+  while (Serial.available() == 0) delay(1);
   char conf = Serial.read();
   if (conf != 0x00) {
     init_error = true;
     return;
   }
+  last_send = millis();
 }
 
 void loop() {
@@ -43,9 +51,13 @@ void loop() {
     digitalWrite(LED_BUILTIN, LOW);
     delay(200);
   } else {
+    while (Serial.available() < 1 && millis() < last_send + 1000) delay(1);
+    if (Serial.available() == 0) {
+      init_error = true;
+      return;
+    }
     switch (Serial.read()) {
       case 0x00:
-        digitalWrite(LED_BUILTIN, HIGH);
         Serial.write(0x00);
         break;
       case 0x01:
@@ -56,6 +68,7 @@ void loop() {
           digitalWrite(LED_BUILTIN, HIGH);
         } else {
           int power = ((int) buf_command[0]) << 8 | buf_command[1];
+          analogWrite(MOTOR_PIN, power);
           Serial.write(0x00);
           digitalWrite(LED_BUILTIN, LOW);
         }
@@ -64,5 +77,6 @@ void loop() {
         Serial.write(0xFF);
         digitalWrite(LED_BUILTIN, HIGH);
     }
+    last_send = millis();
   }
 }
