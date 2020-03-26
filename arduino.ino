@@ -1,7 +1,18 @@
 const uint16_t VERSION = 0;
 const char MAGIC_BYTES[4] = { 0x73, 0x6D, 0x6F, 0x76 };
 
+
+
+
+/* CHANGE ME */
+
 const int MOTOR_PIN = 3; // This is specific to the Arduino UNO, change according to the platform
+const int DIR_PIN_F = 4; // This port is always the opposite value of DIR_PIN_B. When on, the motor goes forward
+const int DIR_PIN_B = 5;
+
+
+
+
 
 bool init_error = false; // Was there a fatal error
 uint16_t last_send; // When was the last heartbeat sent?
@@ -9,6 +20,11 @@ uint16_t last_send; // When was the last heartbeat sent?
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(MOTOR_PIN, OUTPUT);
+  pinMode(DIR_PIN_F, OUTPUT);
+  pinMode(DIR_PIN_B, OUTPUT);
+
+  digitalWrite(DIR_PIN_F, HIGH);
+  digitalWrite(DIR_PIN_B, LOW);
   Serial.begin(115200);
 
   digitalWrite(LED_BUILTIN, LOW);
@@ -62,8 +78,10 @@ void loop() {
           Serial.write(0x01);
           digitalWrite(LED_BUILTIN, HIGH);
         } else {
-          int power = ((int) buf_command[0]) << 8 | buf_command[1];
-          analogWrite(MOTOR_PIN, map(power, 0, (2 << 16) - 1, 0, 255));
+          int16_t power = ((int) buf_command[0]) << 8 | buf_command[1];
+          analogWrite(MOTOR_PIN, map(abs(power), 0, (2 << 15) - 1, 0, 255));
+          digitalWrite(DIR_PIN_F, power >= 0);
+          digitalWrite(DIR_PIN_B, power < 0);
           Serial.write(0x00);
           digitalWrite(LED_BUILTIN, LOW);
         }
